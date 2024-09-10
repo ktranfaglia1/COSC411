@@ -26,15 +26,40 @@ class TicTacToe(QWidget):
 
   def paintEvent(self, event):
     qp = QPainter()
+
+    blackPen = QPen(QBrush(Qt.black), 1)
+
     qp.begin(self)
-    for i in range(CELL_COUNT):
-        pass#see if you can figure out the rest to draw the grid!
+
+    # Clear the background
+    qp.fillRect(event.rect(), Qt.white)
+
+    qp.setPen(blackPen) 
+
+    for r in range(len(self.__board)):
+      for c in range(len(self.__board[r])):
+        qp.drawRect(GRID_ORIGINX + c * CELL_SIZE, GRID_ORIGINY + r * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+        if (self.__board[r][c] == 0):
+          qp.drawLine(GRID_ORIGINX + c * CELL_SIZE + 3, GRID_ORIGINY + r * CELL_SIZE + 3, GRID_ORIGINX + c * CELL_SIZE \
+                      + CELL_SIZE - 3, GRID_ORIGINY + r * CELL_SIZE + CELL_SIZE - 3)
+          qp.drawLine(GRID_ORIGINX + c * CELL_SIZE + CELL_SIZE - 3, GRID_ORIGINY + r * CELL_SIZE + 3, GRID_ORIGINX + c * \
+                      CELL_SIZE + 3, GRID_ORIGINY + r * CELL_SIZE + CELL_SIZE - 3)
+
     qp.end()
 
   def mousePressEvent(self, event):
-    pass
-    #figure out what cell they clicked in
-    #retrieve that cell from the board
+    if (self.__winner is True):
+      return
+    row = (event.y() - GRID_ORIGINY) // CELL_SIZE
+    col = (event.x() - GRID_ORIGINX) // CELL_SIZE
+
+    if (0 <= row < CELL_COUNT and 0 <= col < CELL_COUNT):
+      print(row, col)
+      if (self.__board[row][col] == -1):
+        self.__board[row][col] = self.__turn
+        self.__turn = (self.__turn + 1) % 2
+      print(self.__board)
+    self.update()
 
 
 
