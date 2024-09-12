@@ -39,11 +39,16 @@ class TicTacToe(QWidget):
     for r in range(len(self.__board)):
       for c in range(len(self.__board[r])):
         qp.drawRect(GRID_ORIGINX + c * CELL_SIZE, GRID_ORIGINY + r * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+        if (self.__is_winning_square(r,c) is True):
+          qp.setPen(QPen(Qt.red, 2, Qt.SolidLine))
         if (self.__board[r][c] == 0):
           qp.drawLine(GRID_ORIGINX + c * CELL_SIZE + 3, GRID_ORIGINY + r * CELL_SIZE + 3, GRID_ORIGINX + c * CELL_SIZE \
                       + CELL_SIZE - 3, GRID_ORIGINY + r * CELL_SIZE + CELL_SIZE - 3)
           qp.drawLine(GRID_ORIGINX + c * CELL_SIZE + CELL_SIZE - 3, GRID_ORIGINY + r * CELL_SIZE + 3, GRID_ORIGINX + c * \
                       CELL_SIZE + 3, GRID_ORIGINY + r * CELL_SIZE + CELL_SIZE - 3)
+        elif (self.__board[r][c] == 1):
+          qp.drawEllipse(GRID_ORIGINX + c * CELL_SIZE + 3, GRID_ORIGINY + r * CELL_SIZE + 3, CELL_SIZE - 6, CELL_SIZE -6)
+        qp.setPen(Qt.black)
 
     qp.end()
 
@@ -61,7 +66,24 @@ class TicTacToe(QWidget):
       print(self.__board)
     self.update()
 
-
+  def __is_winning_square(self, r, c):
+    for i in range(CELL_COUNT):
+      # Row winner
+      if (self.__board[i][0] != -1 and (self.__board[i][0] == self.__board[i][1] and self.__board[i][1] == self.__board[i][2])):
+        self.__winner = True
+        return r == i
+      # Column winner
+      if (self.__board[0][i] != -1 and (self.__board[0][i] == self.__board[1][i] and self.__board[1][i] == self.__board[2][i])):
+        self.__winner = True
+        return c == i
+      # First diagonal winner
+      if (self.__board[0][0] != -1 and (self.__board[0][0] == self.__board[1][1]) and self.__board[1][1] == self.__board[2][2]):
+        self.__winner = True
+        return r == c
+      # Second diagonal winner
+      if (self.__board[0][2] != -1 and (self.__board[0][2] == self.__board[1][1]) and self.__board[1][1] == self.__board[2][0]):
+        self.__winner = True
+        return (r + c == 2)
 
 if __name__ == '__main__':
   app = QApplication(sys.argv)
