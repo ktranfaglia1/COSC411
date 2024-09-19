@@ -28,7 +28,7 @@ class SlidingPuzzle(QWidget):
 
         # Create a reset button and position it outside the grid (top-left corner)
         self.reset_button = QPushButton('Reset', self)
-        self.reset_button.setStyleSheet("""QPushButton {background-color: #3498db; border: 1px solid black; 
+        self.reset_button.setStyleSheet("""QPushButton {background-color: #cc6666; border: 1px solid black; 
         border-radius: 5px; font-size: 14px;}""")
         self.reset_button.setGeometry(W_WIDTH - 169, GRID_ORIGINY - 40, 70, 35)
         self.reset_button.clicked.connect(self.play_again)
@@ -111,7 +111,7 @@ class SlidingPuzzle(QWidget):
                 else:
                     # Fill the empty block with a blue color
                     qp.fillRect(GRID_ORIGINX + c * CELL_SIZE, GRID_ORIGINY + r * CELL_SIZE, CELL_SIZE, CELL_SIZE,
-                                QColor(70, 130, 180))
+                                QColor(102, 204, 102))
 
                 # Draw the cell border
                 qp.drawRect(GRID_ORIGINX + c * CELL_SIZE, GRID_ORIGINY + r * CELL_SIZE, CELL_SIZE, CELL_SIZE)
