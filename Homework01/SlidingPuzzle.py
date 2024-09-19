@@ -6,7 +6,7 @@ import sys
 import random
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen
 from PyQt5.QtWidgets import QWidget, QApplication, QPushButton
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 
 # Set game specifications: window size, cell/grid size, cell count, and grid starting location
 CELL_COUNT = 4
@@ -29,6 +29,12 @@ class SlidingPuzzle(QWidget):
         self.__board = [[-1 for _ in range(CELL_COUNT)] for _ in range(CELL_COUNT)]
         self.__order = None
         self.initialize_board()
+
+        # Setup timer to display seconds and milliseconds since the puzzle was started
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_time)
+        self.elapsed_time = 0
+        self.timer.start(100)  # Update every millisecond second
 
         # Create a reset button outside the grid (top-right corner)
         self.reset_button = QPushButton('Reset', self)
@@ -58,7 +64,6 @@ class SlidingPuzzle(QWidget):
     # Check if the current board shuffle is solvable using a mathematical formula that counts inversions
     def is_solvable(self):
         inversions = self.count_inversions()  # Get number of inversions
-        print(inversions)
         empty_row = CELL_COUNT - (self.__order.index(0) // CELL_COUNT)  # Find row from bottom with empty cell
 
         # Check grid width (compatible with future cell amount changes) and assess inversions rule
@@ -94,8 +99,15 @@ class SlidingPuzzle(QWidget):
         qp.setFont(QFont('Arial', 15))
         qp.setPen(QPen(Qt.blue))
         qp.drawText(GRID_ORIGINX, GRID_ORIGINY - 15, f"Moves: {self.__moves}")
-        qp.setFont(QFont('Arial', 18))
         qp.setPen(QPen(Qt.black))
+
+        # Convert milliseconds to seconds and milliseconds
+        seconds = self.elapsed_time // 1000
+        milliseconds = (self.elapsed_time % 1000) // 100
+
+        # Draw the timer above the grid
+        qp.drawText(GRID_ORIGINX + 200, GRID_ORIGINY - 15, f"Time: {seconds}.{milliseconds} seconds")
+        qp.setFont(QFont('Arial', 18))
 
         # Loop through 2D board array and draw the board with numerically labeled cells
         for r in range(len(self.__board)):
@@ -127,7 +139,8 @@ class SlidingPuzzle(QWidget):
 
         # If the user wins, show the overlay
         if (self.win):
-            self.draw_overlay(qp)
+            self.timer.stop()
+            self.draw_overlay(qp, seconds, milliseconds)
         qp.end()
 
     # Handle mouse click event
@@ -187,13 +200,14 @@ class SlidingPuzzle(QWidget):
         return (abs(row - empty_row) == 1 and col == empty_col) or (abs(col - empty_col) == 1 and row == empty_row)
 
     # Draw the victory screen to let the user know they won
-    def draw_overlay(self, qp):
+    def draw_overlay(self, qp, seconds, milliseconds):
         qp.fillRect(self.rect(), QColor(128, 128, 128))  # Draw the grey overlay
 
         # Display win message
         qp.setPen(QPen(Qt.white))
-        qp.setFont(QFont('Arial', 28))
-        qp.drawText(self.rect(), Qt.AlignCenter, f"Congratulations \n\n You solved the puzzle in {self.__moves} moves!")
+        qp.setFont(QFont('Arial', 26))
+        qp.drawText(self.rect(), Qt.AlignCenter, f"Congratulations \n\n You solved the puzzle in"
+                                                 f" {seconds}.{milliseconds} seconds \n using {self.__moves} moves!")
 
     # Check if the user won the game (all 15 numbered cells are in order)
     def check_win(self):
@@ -213,7 +227,14 @@ class SlidingPuzzle(QWidget):
         self.__moves = 0
         self.win = False
         self.reset_button.show()
+        self.elapsed_time = 0  # Reset the elapsed time
+        self.timer.start()  # Restart the timer
         self.update()
+
+    # Update the timer
+    def update_time(self):
+        self.elapsed_time += 100  # Increment the elapsed time by 1 second
+        self.update()  # Trigger a repaint to show the updated time
 
 
 if __name__ == '__main__':
