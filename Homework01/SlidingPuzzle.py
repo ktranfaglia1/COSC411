@@ -1,8 +1,8 @@
 import sys
 import random
-from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QBrush
+from PyQt5.QtGui import QPainter, QColor, QFont, QPen
+from PyQt5.QtWidgets import QWidget, QApplication, QPushButton
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QApplication
 
 # Set game specifications: window size, cell/grid size, cell count, and grid starting location
 CELL_COUNT = 4
@@ -21,10 +21,18 @@ class SlidingPuzzle(QWidget):
         self.setWindowTitle('SlidingPuzzle')
         self.setGeometry(300, 300, W_WIDTH, W_HEIGHT)
         self.__moves = 0
-        self.__complete = False
+        self.win = True
         self.__board = [[-1 for _ in range(CELL_COUNT)] for _ in range(CELL_COUNT)]
         self.__order = None
         self.initialize_board()
+
+        # Create a reset button and position it outside the grid (top-left corner)
+        self.reset_button = QPushButton('Reset', self)
+        self.reset_button.setStyleSheet("""QPushButton {background-color: #3498db; border: 1px solid black; 
+        border-radius: 5px; font-size: 14px;}""")
+        self.reset_button.setGeometry(W_WIDTH - 169, GRID_ORIGINY - 40, 70, 35)
+        self.reset_button.clicked.connect(self.play_again)
+
         self.show()
 
     # Initializes the board with random cell numbers if solvable
@@ -75,12 +83,14 @@ class SlidingPuzzle(QWidget):
 
         # Fill the entire grid region with light grey color
         grid_width = grid_height = CELL_COUNT * CELL_SIZE
-        qp.fillRect(GRID_ORIGINX, GRID_ORIGINY, grid_width, grid_height, QColor(200, 200, 200))
+        qp.fillRect(GRID_ORIGINX, GRID_ORIGINY, grid_width, grid_height, QColor(180, 180, 180))
 
-        # Set text font and draw the move counter above the top-left corner of the grid
+        # Set text font and color, then draw the move counter above the top-left corner of the grid
         qp.setFont(QFont('Arial', 15))
-        qp.drawText(GRID_ORIGINX, GRID_ORIGINY - 10, f"Moves: {self.__moves}")
+        qp.setPen(QPen(Qt.blue))
+        qp.drawText(GRID_ORIGINX, GRID_ORIGINY - 15, f"Moves: {self.__moves}")
         qp.setFont(QFont('Arial', 18))
+        qp.setPen(QPen(Qt.black))
 
         # Loop through 2D board array and draw the board with numerically labeled cells
         for r in range(len(self.__board)):
@@ -105,33 +115,54 @@ class SlidingPuzzle(QWidget):
 
                 # Draw the cell border
                 qp.drawRect(GRID_ORIGINX + c * CELL_SIZE, GRID_ORIGINY + r * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+
+                # If the user wins, show the overlay
+                if (self.win):
+                    self.draw_overlay(qp)
         qp.end()
 
     # Handle mouse click event
     def mousePressEvent(self, event):
-        # Get the exact x and y coordinates of the click
-        y = event.y()
-        x = event.x()
-
-        # Print the click coordinates
-        print(f"Click coordinates: x={x}, y={y}")
+        # If user won, reset the game on click
+        if self.win:
+            self.play_again()
+            return
 
         # Calculate row and column of mouse click
-        row = (y - GRID_ORIGINY) // CELL_SIZE
-        col = (x - GRID_ORIGINX) // CELL_SIZE
+        row = (event.y() - GRID_ORIGINY) // CELL_SIZE
+        col = (event.x() - GRID_ORIGINX) // CELL_SIZE
 
         # Check that the row and column are within the CELL_COUNT * CELL_COUNT grid
         if (0 <= row < CELL_COUNT and 0 <= col < CELL_COUNT):
-            # Find the position of the empty cell (denoted by 0)
-            empty_row, empty_col = self.find_empty_cell()
+            empty_row, empty_col = self.find_empty_cell()  # Find the position of the empty cell (denoted by 0)
 
-            # Check if the clicked cell is adjacent to the empty cell
-            if (self.is_adjacent(row, col, empty_row, empty_col)):
-                # Swap the clicked cell with the empty cell using the python single line swap
-                self.__board[empty_row][empty_col], self.__board[row][col] = self.__board[row][col], \
-                    self.__board[empty_row][empty_col]
-                self.__moves += 1
-                self.update()
+            # Check if cell is in the same row as the empty cell
+            if (row == empty_row):
+                move_count = abs(col - empty_col)  # Number of cells to move
+                if (col < empty_col):  # Slide right
+                    for i in range(empty_col, col, -1):
+                        self.__board[row][i] = self.__board[row][i - 1]
+                elif (col > empty_col):  # Slide left
+                    for i in range(empty_col, col):
+                        self.__board[row][i] = self.__board[row][i + 1]
+
+            # Check if cell is in the same column as the empty cell
+            elif (col == empty_col):
+                move_count = abs(row - empty_row)  # Number of cells to move
+                if (row < empty_row):  # Slide down
+                    for i in range(empty_row, row, -1):
+                        self.__board[i][col] = self.__board[i - 1][col]
+                elif (row > empty_row):  # Slide up
+                    for i in range(empty_row, row):
+                        self.__board[i][col] = self.__board[i + 1][col]
+            # Clicked cell is not swappable
+            else:
+                return
+
+            self.__board[row][col] = 0  # place empty cell at the clicked position
+            self.__moves += move_count  # Update move count by the number of cells that moved
+            self.check_win()  # Check if user won
+            self.update()
 
     # Return location (row, column) of the empty cell
     def find_empty_cell(self):
@@ -145,6 +176,30 @@ class SlidingPuzzle(QWidget):
     def is_adjacent(self, row, col, empty_row, empty_col):
         # Check if the clicked cell is adjacent to the empty cell
         return (abs(row - empty_row) == 1 and col == empty_col) or (abs(col - empty_col) == 1 and row == empty_row)
+
+    def draw_overlay(self, qp):
+        # Draw the semi-transparent grey overlay
+        overlay_color = QColor(128, 128, 128)  # Semi-transparent grey
+        qp.fillRect(self.rect(), overlay_color)
+
+        # Display win message
+        qp.setPen(QPen(Qt.white))
+        qp.setFont(QFont('Arial', 28))
+        qp.drawText(self.rect(), Qt.AlignCenter, f"Congratulations \n\n You solved the puzzle in {self.__moves} moves!")
+
+    def check_win(self):
+        # Check if the board is in the solved state
+        flattened_board = [cell for row in self.__board for cell in row]
+        if flattened_board == list(range(1, CELL_COUNT * CELL_COUNT)) + [0]:
+            self.win = True
+            self.update()
+
+    def play_again(self):
+        # Reset the game state
+        self.initialize_board()
+        self.__moves = 0
+        self.win = False
+        self.update()
 
 
 if __name__ == '__main__':
