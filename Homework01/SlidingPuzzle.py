@@ -1,3 +1,7 @@
+#  Kyle Tranfaglia
+#  COSC411 - Homework01
+#  Last updated 09/19/24
+#  This program uses PyQt5 packages to construct a game called 15-puzzle
 import sys
 import random
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen
@@ -21,26 +25,26 @@ class SlidingPuzzle(QWidget):
         self.setWindowTitle('SlidingPuzzle')
         self.setGeometry(300, 300, W_WIDTH, W_HEIGHT)
         self.__moves = 0
-        self.win = True
+        self.win = False
         self.__board = [[-1 for _ in range(CELL_COUNT)] for _ in range(CELL_COUNT)]
         self.__order = None
         self.initialize_board()
 
-        # Create a reset button and position it outside the grid (top-left corner)
+        # Create a reset button outside the grid (top-right corner)
         self.reset_button = QPushButton('Reset', self)
         self.reset_button.setStyleSheet("""QPushButton {background-color: #cc6666; border: 1px solid black; 
         border-radius: 5px; font-size: 14px;}""")
         self.reset_button.setGeometry(W_WIDTH - 169, GRID_ORIGINY - 40, 70, 35)
         self.reset_button.clicked.connect(self.play_again)
-
         self.show()
 
     # Initializes the board with random cell numbers if solvable
     def initialize_board(self):
         # Initialize and shuffle the cell order array
         self.__order = list(range(CELL_COUNT * CELL_COUNT))
+        random.shuffle(self.__order)  # Initial shuffle
 
-        # Shuffle the board order until permutation is solvable
+        # Shuffle the board order until the permutation is solvable
         while (not self.is_solvable()):
             random.shuffle(self.__order)
 
@@ -54,6 +58,7 @@ class SlidingPuzzle(QWidget):
     # Check if the current board shuffle is solvable using a mathematical formula that counts inversions
     def is_solvable(self):
         inversions = self.count_inversions()  # Get number of inversions
+        print(inversions)
         empty_row = CELL_COUNT - (self.__order.index(0) // CELL_COUNT)  # Find row from bottom with empty cell
 
         # Check grid width (compatible with future cell amount changes) and assess inversions rule
@@ -109,16 +114,20 @@ class SlidingPuzzle(QWidget):
 
                     qp.drawText(text_x, text_y, str(number))  # Draw the number centered in the cell
                 else:
-                    # Fill the empty block with a blue color
+                    # Fill the empty block with a green color
                     qp.fillRect(GRID_ORIGINX + c * CELL_SIZE, GRID_ORIGINY + r * CELL_SIZE, CELL_SIZE, CELL_SIZE,
                                 QColor(102, 204, 102))
 
                 # Draw the cell border
                 qp.drawRect(GRID_ORIGINX + c * CELL_SIZE, GRID_ORIGINY + r * CELL_SIZE, CELL_SIZE, CELL_SIZE)
 
-                # If the user wins, show the overlay
-                if (self.win):
-                    self.draw_overlay(qp)
+        # Draw the instructional text below the board
+        qp.setFont(QFont('Arial', 15))
+        qp.drawText(GRID_ORIGINX + 88, GRID_ORIGINY + grid_height + 40, "Order the cells chronologically to win!")
+
+        # If the user wins, show the overlay
+        if (self.win):
+            self.draw_overlay(qp)
         qp.end()
 
     # Handle mouse click event
@@ -177,28 +186,33 @@ class SlidingPuzzle(QWidget):
         # Check if the clicked cell is adjacent to the empty cell
         return (abs(row - empty_row) == 1 and col == empty_col) or (abs(col - empty_col) == 1 and row == empty_row)
 
+    # Draw the victory screen to let the user know they won
     def draw_overlay(self, qp):
-        # Draw the semi-transparent grey overlay
-        overlay_color = QColor(128, 128, 128)  # Semi-transparent grey
-        qp.fillRect(self.rect(), overlay_color)
+        qp.fillRect(self.rect(), QColor(128, 128, 128))  # Draw the grey overlay
 
         # Display win message
         qp.setPen(QPen(Qt.white))
         qp.setFont(QFont('Arial', 28))
         qp.drawText(self.rect(), Qt.AlignCenter, f"Congratulations \n\n You solved the puzzle in {self.__moves} moves!")
 
+    # Check if the user won the game (all 15 numbered cells are in order)
     def check_win(self):
         # Check if the board is in the solved state
-        flattened_board = [cell for row in self.__board for cell in row]
-        if flattened_board == list(range(1, CELL_COUNT * CELL_COUNT)) + [0]:
+        flattened_board = [cell for row in self.__board for cell in row]  # Flatten board for list comparison
+
+        # Check if the ordered list matches the flattened board
+        if (flattened_board == list(range(1, CELL_COUNT * CELL_COUNT)) + [0]):
             self.win = True
+            self.reset_button.hide()
             self.update()
 
+    # Reset the game, as in, set a new random state on board and set moves to 0
     def play_again(self):
         # Reset the game state
         self.initialize_board()
         self.__moves = 0
         self.win = False
+        self.reset_button.show()
         self.update()
 
 
