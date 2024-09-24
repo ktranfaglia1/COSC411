@@ -1,6 +1,6 @@
 #  Kyle Tranfaglia
 #  COSC411 - Homework01
-#  Last updated 09/19/24
+#  Last updated 09/23/24
 #  This program uses PyQt5 packages to construct a game called 15-puzzle
 import sys
 import random
@@ -146,7 +146,7 @@ class SlidingPuzzle(QWidget):
     # Handle mouse click event
     def mousePressEvent(self, event):
         # If user won, reset the game on click
-        if self.win:
+        if (self.win):
             self.play_again()
             return
 
@@ -177,6 +177,7 @@ class SlidingPuzzle(QWidget):
                 elif (row > empty_row):  # Slide up
                     for i in range(empty_row, row):
                         self.__board[i][col] = self.__board[i + 1][col]
+
             # Clicked cell is not swappable
             else:
                 return
@@ -193,11 +194,6 @@ class SlidingPuzzle(QWidget):
             for c in range(CELL_COUNT):
                 if self.__board[r][c] == 0:
                     return r, c
-
-    # Return boolean that indicates if the cells are adjacent (swappable)
-    def is_adjacent(self, row, col, empty_row, empty_col):
-        # Check if the clicked cell is adjacent to the empty cell
-        return (abs(row - empty_row) == 1 and col == empty_col) or (abs(col - empty_col) == 1 and row == empty_row)
 
     # Draw the victory screen to let the user know they won
     def draw_overlay(self, qp, seconds, milliseconds):
@@ -233,7 +229,7 @@ class SlidingPuzzle(QWidget):
 
     # Update the timer
     def update_time(self):
-        self.elapsed_time += 100  # Increment the elapsed time by 1 second
+        self.elapsed_time += 100  # Increment the elapsed time by 1 millisecond
         self.update()  # Trigger a repaint to show the updated time
 
 
