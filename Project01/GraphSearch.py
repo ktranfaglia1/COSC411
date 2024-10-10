@@ -45,7 +45,7 @@ def bfs(graph, start, destination):
 
             # Print results from BFS
             print("\nBFS Path:")
-            print(f"Path: {' -> '.join(path)}")  # join list elements of path into a single string separated by ->
+            print(f"Path: {' --> '.join(path)}")  # join list elements of path into a single string separated by ->
             print(f"Total distance: {distance} miles")
             print(f"Time taken: {time_taken:.7f} seconds")
 
@@ -85,7 +85,7 @@ def dfs(graph, start, destination):
 
             # Print results from DFS
             print("\nDFS Path:")
-            print(f"Path: {' -> '.join(path)}")  # join list elements of path into a single string separated by ->
+            print(f"Path: {' --> '.join(path)}")  # join list elements of path into a single string separated by ->
             print(f"Total distance: {distance} miles")
             print(f"Time taken: {time_taken:.7f} seconds")
 
@@ -127,7 +127,7 @@ def ucs(graph, start, destination):
 
             # Print results from DFS
             print("\nUCS Path:")
-            print(f"Path: {' -> '.join(path)}")  # join list elements of path into a single string separated by ->
+            print(f"Path: {' --> '.join(path)}")  # join list elements of path into a single string separated by ->
             print(f"Total distance: {distance} miles")
             print(f"Time taken: {time_taken:.7f} seconds")
 
