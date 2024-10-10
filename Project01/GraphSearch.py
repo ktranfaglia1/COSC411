@@ -1,6 +1,6 @@
 # Kyle Tranfaglia
 # COSC411 - Project01
-# Last updated 10/09/24
+# Last updated 10/10/24
 # This program uses a BFS, DFS, and UCS algorithm to find a path given a start
 # city and destination city in the provided undirected & weighted graph
 
@@ -74,7 +74,7 @@ def dfs(graph, start, destination):
 
     # Continue search as long as there are cities in the stack left to explore
     while (stack):
-        # Remove first city from queue (FIFO) and store the tuple individually | O(1) compared to O(n) for .pop(0)
+        # Remove first city from queue (FIFO) and store the tuple individually
         city, path, distance = stack.pop()
 
         # Check if destination has been reached
@@ -133,15 +133,15 @@ def ucs(graph, start, destination):
 
             return
         else:
-            # Visit the city if not yet visited or revisit if a smaller distance (ensure optimality) is found
+            # Visit the city if not yet visited or revisit if a smaller distance (to ensure optimality) is found
             if (city not in visited or distance < visited[city]):
-                visited[city] = distance  # Set the minimum cost to reach this city
+                visited[city] = distance  # Set the minimum cost to reach the city
 
                 # Explore all neighboring cities
                 for neighbor, miles in graph[city].items():
                     new_distance = distance + miles  # Calculate the new total distance (cost) to reach the neighbor
 
-                    # Check if it's a new city or has a lower cost and add the neighbor to the priority queue
+                    # Check if it's a new city or has a lower cost, then add the neighbor to the priority queue
                     if (neighbor not in visited or new_distance < visited[neighbor]):
                         priority_queue.put((new_distance, neighbor, path + [neighbor]))
 
