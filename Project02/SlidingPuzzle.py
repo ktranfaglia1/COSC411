@@ -8,6 +8,7 @@ from PyQt5.QtGui import QPainter, QColor, QFont, QPen
 from PyQt5.QtWidgets import QWidget, QApplication, QPushButton
 from PyQt5.QtCore import Qt, QTimer
 from queue import PriorityQueue
+import heapq
 
 # Set game specifications: window size, cell/grid size, cell count, and grid starting location
 CELL_COUNT = 4
@@ -16,6 +17,285 @@ GRID_ORIGINX = 100
 GRID_ORIGINY = 100
 W_WIDTH = 800
 W_HEIGHT = 800
+
+
+# Calculate the manhattan distance to get a heuristic cost for from the current board state to the solved state
+def get_manhattan_distance(board):
+    # Define a mapping of each tile's number to its goal position in the solved state
+    goal_position = {
+        1: (0, 0), 2: (0, 1), 3: (0, 2), 4: (0, 3),
+        5: (1, 0), 6: (1, 1), 7: (1, 2), 8: (1, 3),
+        9: (2, 0), 10: (2, 1), 11: (2, 2), 12: (2, 3),
+        13: (3, 0), 14: (3, 1), 15: (3, 2), 0: (3, 3)
+    }
+    distance = 0
+
+    # Iterate through each row of the board
+    for r in range(CELL_COUNT):
+        # Iterate through each column of the board
+        for c in range(CELL_COUNT):
+            cell = board[r][c]  # Get the cell at the current position
+            # Check if the tile is not the empty space (0)
+            if cell != 0:
+                goal_row, goal_col = goal_position[cell]  # Get the goal [r,c] for the cell from the goal map
+                # Calculate the Manhattan distance from the current position to the goal position
+                distance += abs(goal_row - r) + abs(goal_col - c)
+
+    return distance  # total Manhattan distance for all cells
+
+
+# def generate_successors(board, empty_pos):
+#     successors = []  # Empty list to hold the successor states
+#     row, col = empty_pos  # Store r and c position of the empty space (0)
+#     directions = [(1, 0), (-1, 0), (0, 1),
+#                   (0, -1)]  # Define possible movement directions: up, down, right, left
+#
+#     # Iterate through each direction to calculate new positions for the empty space
+#     for r, c in directions:
+#         new_row, new_col = row + r, col + c  # Calculate the new position of the empty space based on the direction
+#
+#         # Check if the new position is within the bounds of the board
+#         if 0 <= new_row < CELL_COUNT and 0 <= new_col < CELL_COUNT:
+#             # Create a new board configuration as a copy of the current board
+#             new_board = [r[:] for r in board]
+#
+#             # Swap the empty space with the adjacent tile to create a new configuration
+#             new_board[row][col], new_board[new_row][new_col] = new_board[new_row][new_col], new_board[row][col]
+#
+#             # Append the new board configuration and the new position of the empty space to successors
+#             successors.append((new_board, (new_row, new_col)))
+#
+#     # Return the list of successor states
+#     return successors
+#
+#
+# def a_star_search(initial_board, empty_pos):
+#     open_set = PriorityQueue()
+#     g_cost = 0  # Cost to reach the initial state
+#     h_cost = get_manhattan_distance(initial_board)  # Heuristic cost
+#     f_value = g_cost + h_cost
+#
+#     open_set.put((f_value, initial_board, empty_pos, []))  # (f_value, board, empty_pos, path)
+#     closed_set = set()  # To track visited states
+#
+#     while not open_set.empty():
+#         current_f_value, current_board, current_empty_pos, path = open_set.get()
+#
+#         if current_board == [[1, 2, 3, 4],
+#                              [5, 6, 7, 8],
+#                              [9, 10, 11, 12],
+#                              [13, 14, 15, 0]]:
+#             return path  # Goal state reached
+#
+#         closed_set.add(tuple(map(tuple, current_board)))  # Add current board to closed set
+#
+#         for successor_board, successor_empty_pos in generate_successors(current_board, current_empty_pos):
+#             if tuple(map(tuple, successor_board)) in closed_set:
+#                 continue  # Skip already visited states
+#
+#             g_new_cost = len(path) + 1  # Increment move count
+#             h_new_cost = get_manhattan_distance(successor_board)  # Recalculate heuristic
+#             f_new_value = g_new_cost + h_new_cost  # New f_value
+#
+#             open_set.put((f_new_value, successor_board, successor_empty_pos, path + [successor_board]))
+#
+#     return None  # No solution found
+
+# # Define possible moves and cache them for each board position to avoid boundary checks
+# MOVE_MAP = {
+#     0: [1, 4], 1: [0, 2, 5], 2: [1, 3, 6], 3: [2, 7],
+#     4: [0, 5, 8], 5: [1, 4, 6, 9], 6: [2, 5, 7, 10], 7: [3, 6, 11],
+#     8: [4, 9, 12], 9: [5, 8, 10, 13], 10: [6, 9, 11, 14], 11: [7, 10, 15],
+#     12: [8, 13], 13: [9, 12, 14], 14: [10, 13, 15], 15: [11, 14]
+# }
+#
+#
+# def generate_successors(board, empty_pos):
+#     # Represent the board as a 1D tuple
+#     board_tuple = tuple(board[i][j] for i in range(4) for j in range(4))
+#     empty_idx = empty_pos[0] * 4 + empty_pos[1]
+#
+#     # Create successors by moving the empty tile
+#     successors = []
+#     for move in MOVE_MAP[empty_idx]:
+#         new_board = list(board_tuple)
+#         # Swap empty tile with target tile
+#         new_board[empty_idx], new_board[move] = new_board[move], new_board[empty_idx]
+#         # Convert back to a 2D board for further processing
+#         new_board_2d = [new_board[i * 4:(i + 1) * 4] for i in range(4)]
+#         new_empty_pos = (move // 4, move % 4)
+#         successors.append((new_board_2d, new_empty_pos))
+#
+#     return successors
+#
+#
+# def a_star_search(board, empty_pos):
+#     # Priority queue and visited set
+#     open_set = []
+#     heappush(open_set, (0, board, empty_pos, []))
+#     visited = set()
+#
+#     # Cache for heuristics
+#     heuristic_cache = {}
+#
+#     while open_set:
+#         cost, current_board, current_empty_pos, path = heappop(open_set)
+#
+#         # Convert to tuple for quick hashing
+#         board_tuple = tuple(current_board[i][j] for i in range(4) for j in range(4))
+#
+#         if board_tuple in visited:
+#             continue
+#         visited.add(board_tuple)
+#
+#         # Check for goal
+#         if board_tuple == tuple(range(1, 16)) + (0,):
+#             return path
+#
+#         # Generate successors
+#         for successor, new_empty_pos in generate_successors(current_board, current_empty_pos):
+#             successor_tuple = tuple(successor[i][j] for i in range(4) for j in range(4))
+#
+#             if successor_tuple not in visited:
+#                 # Calculate or retrieve heuristic
+#                 if successor_tuple in heuristic_cache:
+#                     h = heuristic_cache[successor_tuple]
+#                 else:
+#                     h = get_manhattan_distance(successor)  # Using the max heuristic
+#                     heuristic_cache[successor_tuple] = h
+#
+#                 g = cost - h + 1  # Increment actual cost (g) for this move
+#                 f = g + h
+#                 heappush(open_set, (f, successor, new_empty_pos, path + [successor]))
+#
+#     return None  # No solution found
+
+# Define goal state as a tuple for easy comparison
+GOAL_STATE = tuple(range(1, 16)) + (0,)
+
+# Define possible moves for each index (up, down, left, right)
+MOVES = {
+    0: [1, 4], 1: [0, 2, 5], 2: [1, 3, 6], 3: [2, 7],
+    4: [0, 5, 8], 5: [1, 4, 6, 9], 6: [2, 5, 7, 10], 7: [3, 6, 11],
+    8: [4, 9, 12], 9: [5, 8, 10, 13], 10: [6, 9, 11, 14], 11: [7, 10, 15],
+    12: [8, 13], 13: [9, 12, 14], 14: [10, 13, 15], 15: [11, 14]
+}
+
+# Manhattan Distance Heuristic with caching for goal positions
+GOAL_POSITIONS = {val: (i // 4, i % 4) for i, val in enumerate(GOAL_STATE)}
+
+
+def manhattan_heuristic(board):
+    h = 0
+    for idx, tile in enumerate(board):
+        if tile == 0:
+            continue
+        goal_row, goal_col = GOAL_POSITIONS[tile]
+        cur_row, cur_col = idx // 4, idx % 4
+        h += abs(goal_row - cur_row) + abs(goal_col - cur_col)
+    return h
+
+
+#
+#
+# def a_star_search(start_state, emp):
+#     start_tuple = tuple(start_state[i][j] for i in range(4) for j in range(4))
+#     empty_idx = start_tuple.index(0)
+#
+#     # Priority queue with initial state (f, g, h, state, empty index, path)
+#     open_list = []
+#     heapq.heappush(open_list, (0, 0, manhattan_heuristic(start_tuple), start_tuple, empty_idx, []))
+#
+#     visited = set()
+#     visited.add(start_tuple)
+#
+#     while open_list:
+#         _, g, _, current_state, empty_idx, path = heapq.heappop(open_list)
+#
+#         # Check if the goal is reached
+#         if current_state == GOAL_STATE:
+#             print("Solution path:", path)
+#             return path
+#
+#         # Generate successors
+#         for move in MOVES[empty_idx]:
+#             new_state = list(current_state)
+#             # Swap empty tile with target tile
+#             new_state[empty_idx], new_state[move] = new_state[move], new_state[empty_idx]
+#             new_state_tuple = tuple(new_state)
+#             print('here')
+#
+#             if new_state_tuple not in visited:
+#                 visited.add(new_state_tuple)
+#                 new_g = g + 1
+#                 h = manhattan_heuristic(new_state_tuple)
+#                 f = new_g + h
+#                 heapq.heappush(open_list, (f, new_g, h, new_state_tuple, move, path + [move]))
+#
+#     print("No solution found")
+#     return None  # If no solution is found
+
+def linear_conflict(board):
+    conflict = 0
+    for row in range(4):
+        row_tiles = [tile for tile in board[row * 4: (row + 1) * 4] if tile != 0]
+        # Count conflicts in rows
+        conflict += count_linear_conflicts(row_tiles)
+
+    for col in range(4):
+        col_tiles = [board[row * 4 + col] for row in range(4) if board[row * 4 + col] != 0]
+        # Count conflicts in columns
+        conflict += count_linear_conflicts(col_tiles)
+
+    return conflict
+
+
+def count_linear_conflicts(tiles):
+    count = 0
+    for i in range(len(tiles)):
+        for j in range(i + 1, len(tiles)):
+            # If tiles are in the same row and they are out of order
+            if (tiles[i] > tiles[j] and
+                    (tiles[i] // 4 == tiles[j] // 4)):  # same row check
+                count += 2  # Count each pair as contributing to the conflict
+    return count
+
+
+def manhattan_with_conflict(board):
+    return max(manhattan_heuristic(board), linear_conflict(board))
+
+
+def a_star_search(start_state, emp):
+    start_tuple = tuple(start_state[i][j] for i in range(4) for j in range(4))
+    empty_idx = start_tuple.index(0)
+
+    open_list = []
+    heapq.heappush(open_list, (0, 0, manhattan_with_conflict(start_tuple), start_tuple, empty_idx, []))
+
+    visited = set()
+    visited.add(start_tuple)
+
+    while open_list:
+        _, g, _, current_state, empty_idx, path = heapq.heappop(open_list)
+
+        if current_state == GOAL_STATE:
+            print("Solution path found!")
+            return path
+
+        for move in MOVES[empty_idx]:
+            new_state = list(current_state)
+            new_state[empty_idx], new_state[move] = new_state[move], new_state[empty_idx]
+            new_state_tuple = tuple(new_state)
+
+            if new_state_tuple not in visited:
+                visited.add(new_state_tuple)
+                new_g = g + 1
+                h = manhattan_with_conflict(new_state_tuple)
+                f = new_g + h
+                heapq.heappush(open_list, (f, new_g, h, new_state_tuple, move, path + [move]))
+
+    print("No solution found")
+    return None
 
 
 # Sliding puzzle object to handle all game setup and functionality
@@ -30,6 +310,11 @@ class SlidingPuzzle(QWidget):
         self.__board = [[-1 for _ in range(CELL_COUNT)] for _ in range(CELL_COUNT)]
         self.__order = None
         self.initialize_board()
+
+        # Setup timer and variables for solving the puzzle
+        self.solution_path = None
+        self.solution_index = None
+        self.solution_timer = QTimer(self)
 
         # Setup timer to display seconds and milliseconds since the puzzle was started
         self.timer = QTimer(self)
@@ -49,7 +334,7 @@ class SlidingPuzzle(QWidget):
         self.solve_button.setStyleSheet("""QPushButton {background-color: #66cc66; border: 1px solid black; 
         border-radius: 5px; font-size: 14px;}""")
         self.solve_button.setGeometry(W_WIDTH - 249, GRID_ORIGINY - 40, 70, 35)
-        self.solve_button.clicked.connect(self.solve_puzzle)
+        self.solve_button.clicked.connect(self.display_solution_path)
 
         self.show()
 
@@ -223,6 +508,7 @@ class SlidingPuzzle(QWidget):
         if (flattened_board == list(range(1, CELL_COUNT * CELL_COUNT)) + [0]):
             self.win = True
             self.reset_button.hide()
+            self.solve_button.hide()
             self.update()
 
     # Reset the game, as in, set a new random state on board and set moves to 0
@@ -232,6 +518,7 @@ class SlidingPuzzle(QWidget):
         self.__moves = 0
         self.win = False
         self.reset_button.show()
+        self.solve_button.show()
         self.elapsed_time = 0  # Reset the elapsed time
         self.timer.start()  # Restart the timer
         self.update()
@@ -241,100 +528,48 @@ class SlidingPuzzle(QWidget):
         self.elapsed_time += 100  # Increment the elapsed time by 1 millisecond
         self.update()  # Trigger a repaint to show the updated time
 
-    # Solve the puzzle by using A* Search with Manhatten Distance
-    def solve_puzzle(self):
-        solution_path = self.a_star_search()
+    def display_solution_path(self):
+        self.solution_path = a_star_search(self.__board, self.find_empty_cell())  # Store the solution path
+        self.solution_index = 0  # Track the current step in the solution
+        self.solution_timer = QTimer(self)  # Create a timer for updating moves
+        self.solution_timer.timeout.connect(self.solution_step)  # Connect to the step function
+        self.solution_timer.start(500)  # 0.5-second delay for each move
 
-        if solution_path is None:
-            print("No solution found!")
-            return
+    def solution_step(self):
+        if self.solution_index < len(self.solution_path):
+            next_board = self.solution_path[self.solution_index]  # Get next board configuration
 
-        # Animate or display the solution path
-        for step in solution_path:
-            self.__board = step  # Update the board to the next step in the solution
-            self.update()  # Trigger a repaint
-            QApplication.processEvents()  # Allow the UI to update
-            QTimer.singleShot(500, self.update)  # Delay for visualization (500 ms)
+            # Swap the tiles in the current board with the next board configuration
+            empty_pos = self.find_empty_cell()
+            empty_index = empty_pos[0] * CELL_COUNT + empty_pos[1]  # Convert to flat index
 
-    # Calculate the manhattan distance to get a heuristic cost for from the current board state to the solved state
-    def get_manhattan_distance(self):
+            for i in range(len(self.__board)):
+                if self.__board[i] != next_board[i]:
+                    # Swap the tile that differs with the empty position
+                    self.__board[empty_index], self.__board[i] = self.__board[i], self.__board[empty_index]
+                    break  # Swap only the first differing tile
 
-        # Define a mapping of each tile's number to its goal position in the solved state
-        goal_position = {
-            1: (0, 0), 2: (0, 1), 3: (0, 2), 4: (0, 3),
-            5: (1, 0), 6: (1, 1), 7: (1, 2), 8: (1, 3),
-            9: (2, 0), 10: (2, 1), 11: (2, 2), 12: (2, 3),
-            13: (3, 0), 14: (3, 1), 15: (3, 2), 0: (3, 3)
-        }
-        distance = 0
+            self.__moves += 1  # Increment move counter
+            self.update()  # Refresh the display
+            self.solution_index += 1  # Move to the next step
+        else:
+            self.solution_timer.stop()  # Stop the timer when done
 
-        # Iterate through each row of the board
-        for r in range(CELL_COUNT):
-            # Iterate through each column of the board
-            for c in range(CELL_COUNT):
-                cell = self.board[r][c]  # Get the cell at the current position
-                # Check if the tile is not the empty space (0)
-                if cell != 0:
-                    goal_row, goal_col = goal_position[cell]  # Get the goal [r,c] for the cell from the goal map
-                    # Calculate the Manhattan distance from the current position to the goal position
-                    distance += abs(goal_row - r) + abs(goal_col - c)
+    # def solve_puzzle(self):
+    #     empty_pos = self.find_empty_cell()  # Find the position of the empty cell
+    #     solution_path = a_star_search(self.__board, empty_pos)
+    #
+    #     if solution_path is None:
+    #         print("No solution found!")
+    #         return
+    #
+    #     # Animate or display the solution path
+    #     for step in solution_path:
+    #         self.__board = step  # Update the board to the next step in the solution
+    #         self.update()  # Trigger a repaint
+    #         QApplication.processEvents()  # Allow the UI to update
+    #         QTimer.singleShot(500, self.update)  # Delay for visualization (500 ms)
 
-        return distance  # total Manhattan distance for all cells
-
-    def generate_successors(self):
-        successors = []  # Empty list to hold the successor states
-        row, col = self.find_empty_cell()  # Store r and c position of the empty space (0)
-        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]  # Define possible movement directions: up, down, right, left
-
-        # Iterate through each direction to calculate new positions for the empty space
-        for r, c in directions:
-            new_row, new_col = row + r, col + c  # Calculate the new position of the empty space based on the direction
-
-            # Check if the new position is within the bounds of the board
-            if 0 <= new_row < CELL_COUNT and 0 <= new_col < CELL_COUNT:
-                # Create a new board configuration as a copy of the current board
-                new_board = [r[:] for r in self.board]
-
-                # Swap the empty space with the adjacent tile to create a new configuration
-                new_board[row][col], new_board[new_row][new_col] = new_board[new_row][new_col], new_board[row][col]
-
-                # Append the new board configuration and the new position of the empty space to successors
-                successors.append((new_board, (new_row, new_col)))
-
-        # Return the list of successor states
-        return successors
-
-    def a_star_search(self):
-        open_set = PriorityQueue()
-        g_cost = 0  # Cost to reach the initial state
-        h_cost = self.get_manhattan_distance(self.board)  # Heuristic cost
-        f_value = g_cost + h_cost
-
-        open_set.put((f_value, self.board, self.find_empty_cell(), []))  # (f_value, board, empty_pos, path)
-        closed_set = set()  # To track visited states
-
-        while not open_set.empty():
-            current_f_value, current_board, current_empty_pos, path = open_set.get()
-
-            if current_board == [[1, 2, 3, 4],
-                                 [5, 6, 7, 8],
-                                 [9, 10, 11, 12],
-                                 [13, 14, 15, 0]]:
-                return path  # Goal state reached
-
-            closed_set.add(tuple(map(tuple, current_board)))  # Add current board to closed set
-
-            for successor_board, successor_empty_pos in self.generate_successors(current_board, current_empty_pos):
-                if tuple(map(tuple, successor_board)) in closed_set:
-                    continue  # Skip already visited states
-
-                g_new_cost = len(path) + 1  # Increment move count
-                h_new_cost = self.get_manhattan_distance(successor_board)  # Recalculate heuristic
-                f_new_value = g_new_cost + h_new_cost  # New f_value
-
-                open_set.put((f_new_value, successor_board, successor_empty_pos, path + [successor_board]))
-
-        return None  # No solution found
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
