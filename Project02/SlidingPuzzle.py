@@ -18,36 +18,13 @@ GRID_ORIGINY = 100
 W_WIDTH = 800
 W_HEIGHT = 800
 
-
-# Calculate the manhattan distance to get a heuristic cost for from the current board state to the solved state
-def get_manhattan_distance(board):
-    # Define a mapping of each tile's number to its goal position in the solved state
-    goal_position = {
-        1: (0, 0), 2: (0, 1), 3: (0, 2), 4: (0, 3),
-        5: (1, 0), 6: (1, 1), 7: (1, 2), 8: (1, 3),
-        9: (2, 0), 10: (2, 1), 11: (2, 2), 12: (2, 3),
-        13: (3, 0), 14: (3, 1), 15: (3, 2), 0: (3, 3)
-    }
-    distance = 0
-
-    # Iterate through each row of the board
-    for r in range(CELL_COUNT):
-        # Iterate through each column of the board
-        for c in range(CELL_COUNT):
-            cell = board[r][c]  # Get the cell at the current position
-            # Check if the tile is not the empty space (0)
-            if cell != 0:
-                goal_row, goal_col = goal_position[cell]  # Get the goal [r,c] for the cell from the goal map
-                # Calculate the Manhattan distance from the current position to the goal position
-                distance += abs(goal_row - r) + abs(goal_col - c)
-
-    return distance  # total Manhattan distance for all cells
-
-
-# Define goal state as a tuple for easy comparison
+# Goal state as tuple (flat | 1D)
 GOAL_STATE = tuple(range(1, 16)) + (0,)
 
-# Define possible moves for each index (up, down, left, right)
+# Goal state as dictionary to represent a value with its goal coordinates (r,c)
+GOAL_POSITIONS = {val: (i // 4, i % 4) for i, val in enumerate(GOAL_STATE)}
+
+# Define all possible tile swaps (as indexes) for each index (up, down, left, right)
 MOVES = {
     0: [1, 4], 1: [0, 2, 5], 2: [1, 3, 6], 3: [2, 7],
     4: [0, 5, 8], 5: [1, 4, 6, 9], 6: [2, 5, 7, 10], 7: [3, 6, 11],
@@ -55,82 +32,64 @@ MOVES = {
     12: [8, 13], 13: [9, 12, 14], 14: [10, 13, 15], 15: [11, 14]
 }
 
-# Manhattan Distance Heuristic with caching for goal positions
-GOAL_POSITIONS = {val: (i // 4, i % 4) for i, val in enumerate(GOAL_STATE)}
 
-
+# Calculate the manhattan distance to get a heuristic cost for from the current board state to the solved state
 def manhattan_heuristic(board):
-    h = 0
-    for idx, tile in enumerate(board):
-        if tile == 0:
-            continue
+    distance = 0
+    # Iterate over each tile in the board with its index
+    for index, tile in enumerate(board):
+        # Get the goal row and column for the current tile from the predefined goal positions
         goal_row, goal_col = GOAL_POSITIONS[tile]
-        cur_row, cur_col = idx // 4, idx % 4
-        h += abs(goal_row - cur_row) + abs(goal_col - cur_col)
-    return h
+
+        # Calculate the current row and column of the tile in the board
+        row, col = index // 4, index % 4
+
+        # Update the heuristic value by summing the absolute differences in the rows and columns for each tile
+        distance += abs(goal_row - row) + abs(goal_col - col)
+    return distance * 2  # Double the heuristic for improved guidance
 
 
-def linear_conflict(board):
-    conflict = 0
-    for row in range(4):
-        row_tiles = [tile for tile in board[row * 4: (row + 1) * 4] if tile != 0]
-        # Count conflicts in rows
-        conflict += count_linear_conflicts(row_tiles)
-
-    for col in range(4):
-        col_tiles = [board[row * 4 + col] for row in range(4) if board[row * 4 + col] != 0]
-        # Count conflicts in columns
-        conflict += count_linear_conflicts(col_tiles)
-
-    return conflict
-
-
-def count_linear_conflicts(tiles):
-    count = 0
-    for i in range(len(tiles)):
-        for j in range(i + 1, len(tiles)):
-            # If tiles are in the same row and they are out of order
-            if (tiles[i] > tiles[j] and
-                    (tiles[i] // 4 == tiles[j] // 4)):  # same row check
-                count += 2  # Count each pair as contributing to the conflict
-    return count
-
-
-def manhattan_with_conflict(board):
-    return max(manhattan_heuristic(board), linear_conflict(board))
-
-
+# A* Search to find the optimal path solution to the puzzle
 def a_star_search(start_state):
-    start_tuple = tuple(start_state[i][j] for i in range(4) for j in range(4))
-    empty_idx = start_tuple.index(0)
+    # Convert the start state (2D list) into a tuple for hashing and make a list to act as the priority queue
+    start_state = tuple(start_state[i][j] for i in range(4) for j in range(4))
+    exploration_queue = []
 
-    open_list = []
-    heapq.heappush(open_list, (0, 0, manhattan_heuristic(start_tuple), start_tuple, empty_idx, []))
+    empty_index = start_state.index(0)  # Find the index of the empty tile (represented by 0) in the start state
 
-    visited = set()
-    visited.add(start_tuple)
+    # Push the initial state into the list (f, g, h, state, empty index, path)
+    heapq.heappush(exploration_queue, (0, 0, manhattan_heuristic(start_state), start_state, empty_index, []))
 
-    while open_list:
-        _, g, _, current_state, empty_idx, path = heapq.heappop(open_list)
+    # Dictionary to store visited states and their true path costs
+    visited = {start_state: 0}
 
+    # A* loop to iterate until there are no states left to explore (no solution)
+    while exploration_queue:
+        # Pop the state with the lowest f value from the list (f and h not needed)
+        _, g, _, current_state, empty_index, path = heapq.heappop(exploration_queue)
+
+        # Check if the current state is the goal state
         if current_state == GOAL_STATE:
-            print("Solution path found!")
-            return path
+            return path  # Return the path of moves to reach the goal state (list of 1D indexes)
 
-        for move in MOVES[empty_idx]:
+        # Explore all possible moves from the current state, determined by the empty tile's position
+        for move in MOVES[empty_index]:
+            # Create a new state by swapping the empty tile with a neighboring tile
             new_state = list(current_state)
-            new_state[empty_idx], new_state[move] = new_state[move], new_state[empty_idx]
-            new_state_tuple = tuple(new_state)
+            new_state[empty_index], new_state[move] = new_state[move], new_state[empty_index]
+            new_state = tuple(new_state)
 
-            if new_state_tuple not in visited:
-                visited.add(new_state_tuple)
-                new_g = g + 1
-                h = manhattan_heuristic(new_state_tuple)
-                f = new_g + h
-                heapq.heappush(open_list, (f, new_g, h, new_state_tuple, move, path + [move]))
+            # Calculate the costs for the new state
+            new_g = g + 1  # g increments for each move
+            h = manhattan_heuristic(new_state)  # Calculate the heuristic: total manhattan distance of state
+            f = new_g + h  # Compute the total cost by summing true cost and estimated cost
 
-    print("No solution found")
-    return None
+            # Cycle Detection: check if the state has been visited with a lower or equal g value
+            if new_state not in visited or new_g < visited[new_state]:
+                visited[new_state] = new_g  # Update the visited dictionary with the new state's g value
+                heapq.heappush(exploration_queue, (f, new_g, h, new_state, move, path + [move]))
+
+    return None  # Return None to indicate failure
 
 
 # Sliding puzzle object to handle all game setup and functionality
@@ -148,7 +107,7 @@ class SlidingPuzzle(QWidget):
 
         # Setup timer and variables for solving the puzzle
         self.solution_path = None
-        self.solution_index = None
+        self.solution_index = 0
         self.solution_timer = QTimer(self)
 
         # Setup timer to display seconds and milliseconds since the puzzle was started
@@ -235,7 +194,7 @@ class SlidingPuzzle(QWidget):
         milliseconds = (self.elapsed_time % 1000) // 100
 
         # Draw the timer above the grid
-        qp.drawText(GRID_ORIGINX + 200, GRID_ORIGINY - 15, f"Time: {seconds}.{milliseconds} seconds")
+        qp.drawText(GRID_ORIGINX + 180, GRID_ORIGINY - 15, f"Time: {seconds}.{milliseconds} seconds")
         qp.setFont(QFont('Arial', 18))
 
         # Loop through 2D board array and draw the board with numerically labeled cells
@@ -266,10 +225,10 @@ class SlidingPuzzle(QWidget):
         qp.setFont(QFont('Arial', 15))
         qp.drawText(GRID_ORIGINX + 88, GRID_ORIGINY + grid_height + 40, "Order the cells chronologically to win!")
 
-        # If the user wins, show the overlay
+        # Check if the user won
         if self.win:
             self.timer.stop()
-            self.draw_overlay(qp, seconds, milliseconds)
+            self.draw_overlay(qp, seconds, milliseconds)  # Show the victory overlay
         qp.end()
 
     # Handle mouse click event
@@ -342,8 +301,8 @@ class SlidingPuzzle(QWidget):
         # Check if the ordered list matches the flattened board
         if flattened_board == list(range(1, CELL_COUNT * CELL_COUNT)) + [0]:
             self.win = True
-            self.reset_button.hide()
-            self.solve_button.hide()
+            self.reset_button.hide()  # Hide the reset button in victory overlay
+            self.solve_button.hide()  # Hide the solve button in victory overlay
             self.update()
 
     # Reset the game, as in, set a new random state on board and set moves to 0
@@ -352,8 +311,8 @@ class SlidingPuzzle(QWidget):
         self.initialize_board()
         self.__moves = 0
         self.win = False
-        self.reset_button.show()
-        self.solve_button.show()
+        self.reset_button.show()  # Reveal the reset button
+        self.solve_button.show()  # Reveal the solve button
         self.elapsed_time = 0  # Reset the elapsed time
         self.timer.start()  # Restart the timer
         self.update()
@@ -363,47 +322,31 @@ class SlidingPuzzle(QWidget):
         self.elapsed_time += 100  # Increment the elapsed time by 1 millisecond
         self.update()  # Trigger a repaint to show the updated time
 
+    # Use A* Search to find a path to the goal state and display it by moving the tiles every .5-seconds
     def display_solution_path(self):
-        self.solution_path = a_star_search(self.__board, self.find_empty_cell())  # Store the solution path
-        self.solution_index = 0  # Track the current step in the solution
-        self.solution_timer = QTimer(self)  # Create a timer for updating moves
-        self.solution_timer.timeout.connect(self.solution_step)  # Connect to the step function
+        self.solution_path = a_star_search(self.__board)  # Store the solution path
+        self.solution_timer.timeout.connect(self.solution_step)  # Connect to the step (utility) function
         self.solution_timer.start(500)  # 0.5-second delay for each move
 
+    # Utility function to animate the solution by converting the 1D index to a 2D position and swapping the cells
     def solution_step(self):
+        # Continue until goal state is reached (end of solution path)
         if self.solution_index < len(self.solution_path):
-            swap_index = self.solution_path[self.solution_index]  # Get flat index to swap with empty cell
-            swap_pos = (swap_index // CELL_COUNT, swap_index % CELL_COUNT)  # Convert to (row, col)
+            swap_index = self.solution_path[self.solution_index]  # Get 1D index to swap with empty cell
+            swap_pos = (swap_index // CELL_COUNT, swap_index % CELL_COUNT)  # Convert to 2D index (row, col)
 
             empty_pos = self.find_empty_cell()  # Get the current position of the empty cell
 
             # Perform the swap between the empty cell and the specified tile
-            self.__board[empty_pos[0]][empty_pos[1]], self.__board[swap_pos[0]][swap_pos[1]] = (
-                self.__board[swap_pos[0]][swap_pos[1]],
-                self.__board[empty_pos[0]][empty_pos[1]],
-            )
-            print('Doing stuff')
+            self.__board[empty_pos[0]][empty_pos[1]], self.__board[swap_pos[0]][swap_pos[1]] = \
+                self.__board[swap_pos[0]][swap_pos[1]], self.__board[empty_pos[0]][empty_pos[1]]
+
             self.__moves += 1  # Increment the move counter
-            self.update()  # Refresh the display
+            self.update()  # Update the display
             self.solution_index += 1  # Move to the next step in the solution path
         else:
             self.solution_timer.stop()  # Stop the timer when the solution is complete
-            self.check_win()
-
-    # def solve_puzzle(self):
-    #     empty_pos = self.find_empty_cell()  # Find the position of the empty cell
-    #     solution_path = a_star_search(self.__board, empty_pos)
-    #
-    #     if solution_path is None:
-    #         print("No solution found!")
-    #         return
-    #
-    #     # Animate or display the solution path
-    #     for step in solution_path:
-    #         self.__board = step  # Update the board to the next step in the solution
-    #         self.update()  # Trigger a repaint
-    #         QApplication.processEvents()  # Allow the UI to update
-    #         QTimer.singleShot(500, self.update)  # Delay for visualization (500 ms)
+            self.check_win()  # Check for a win condition (goal state met)
 
 
 if __name__ == '__main__':
