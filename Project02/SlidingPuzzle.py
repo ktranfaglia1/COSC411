@@ -186,7 +186,7 @@ class SlidingPuzzle(QWidget):
 
         if self.solving:
             qp.setPen(QPen(Qt.red))
-            qp.drawText(GRID_ORIGINX + 150, GRID_ORIGINY - 60, "SOLUTION IN PROGRESS")
+            qp.drawText(GRID_ORIGINX + 60, GRID_ORIGINY - 60, "PLEASE WAIT - SOLUTION IN PROGRESS")
 
         # Set text font and color, then draw the move counter above the top-left corner of the grid
         qp.setPen(QPen(Qt.blue))
