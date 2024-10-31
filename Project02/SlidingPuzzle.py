@@ -24,14 +24,6 @@ GOAL_STATE = tuple(range(1, 16)) + (0,)
 # Goal state as dictionary to represent a value with its goal coordinates (r,c)
 GOAL_POSITIONS = {val: (i // 4, i % 4) for i, val in enumerate(GOAL_STATE)}
 
-# Define all possible tile swaps (as indexes) for each index (up, down, left, right)
-MOVES = {
-    0: [1, 4], 1: [0, 2, 5], 2: [1, 3, 6], 3: [2, 7],
-    4: [0, 5, 8], 5: [1, 4, 6, 9], 6: [2, 5, 7, 10], 7: [3, 6, 11],
-    8: [4, 9, 12], 9: [5, 8, 10, 13], 10: [6, 9, 11, 14], 11: [7, 10, 15],
-    12: [8, 13], 13: [9, 12, 14], 14: [10, 13, 15], 15: [11, 14]
-}
-
 
 # Calculate the manhattan distance to get a heuristic cost for from the current board state to the solved state
 def manhattan_heuristic(board):
@@ -46,11 +38,18 @@ def manhattan_heuristic(board):
 
         # Update the heuristic value by summing the absolute differences in the rows and columns for each tile
         distance += abs(goal_row - row) + abs(goal_col - col)
-    return distance * 2  # Double the heuristic for improved guidance
+    return distance * 1.5  # Scale the heuristic for improved guidance
 
 
 # A* Search to find the optimal path solution to the puzzle
 def a_star_search(start_state):
+    # Define all possible tile swaps (as indexes) for each index (up, down, left, right)
+    moves = {
+        0: [1, 4], 1: [0, 2, 5], 2: [1, 3, 6], 3: [2, 7],
+        4: [0, 5, 8], 5: [1, 4, 6, 9], 6: [2, 5, 7, 10], 7: [3, 6, 11],
+        8: [4, 9, 12], 9: [5, 8, 10, 13], 10: [6, 9, 11, 14], 11: [7, 10, 15],
+        12: [8, 13], 13: [9, 12, 14], 14: [10, 13, 15], 15: [11, 14]
+    }
     # Convert the start state (2D list) into a tuple for hashing and make a list to act as the priority queue
     start_state = tuple(start_state[i][j] for i in range(4) for j in range(4))
     exploration_queue = []
@@ -73,7 +72,7 @@ def a_star_search(start_state):
             return path  # Return the path of moves to reach the goal state (list of 1D indexes)
 
         # Explore all possible moves from the current state, determined by the empty tile's position
-        for move in MOVES[empty_index]:
+        for move in moves[empty_index]:
             # Create a new state by swapping the empty tile with a neighboring tile
             new_state = list(current_state)
             new_state[empty_index], new_state[move] = new_state[move], new_state[empty_index]
@@ -106,6 +105,7 @@ class SlidingPuzzle(QWidget):
         self.initialize_board()
 
         # Setup timer and variables for solving the puzzle
+        self.solving = False
         self.solution_path = None
         self.solution_index = 0
         self.solution_timer = QTimer(self)
@@ -128,7 +128,7 @@ class SlidingPuzzle(QWidget):
         self.solve_button.setStyleSheet("""QPushButton {background-color: #66cc66; border: 1px solid black; 
         border-radius: 5px; font-size: 14px;}""")
         self.solve_button.setGeometry(W_WIDTH - 249, GRID_ORIGINY - 40, 70, 35)
-        self.solve_button.clicked.connect(self.display_solution_path)
+        self.solve_button.clicked.connect(self.display_solution)
 
         self.show()
 
@@ -178,23 +178,30 @@ class SlidingPuzzle(QWidget):
         # Setup QPainter
         qp = QPainter()
         qp.begin(self)
+        qp.setFont(QFont('Arial', 15))
 
         # Fill the entire grid region with light grey color
         grid_width = grid_height = CELL_COUNT * CELL_SIZE
         qp.fillRect(GRID_ORIGINX, GRID_ORIGINY, grid_width, grid_height, QColor(180, 180, 180))
 
+        if self.solving:
+            qp.setPen(QPen(Qt.red))
+            qp.drawText(GRID_ORIGINX + 150, GRID_ORIGINY - 60, "SOLUTION IN PROGRESS")
+
         # Set text font and color, then draw the move counter above the top-left corner of the grid
-        qp.setFont(QFont('Arial', 15))
         qp.setPen(QPen(Qt.blue))
         qp.drawText(GRID_ORIGINX, GRID_ORIGINY - 15, f"Moves: {self.__moves}")
-        qp.setPen(QPen(Qt.black))
 
         # Convert milliseconds to seconds and milliseconds
         seconds = self.elapsed_time // 1000
         milliseconds = (self.elapsed_time % 1000) // 100
 
         # Draw the timer above the grid
+        qp.setPen(QPen(Qt.black))
         qp.drawText(GRID_ORIGINX + 180, GRID_ORIGINY - 15, f"Time: {seconds}.{milliseconds} seconds")
+
+        # Draw the instructional text below the board
+        qp.drawText(GRID_ORIGINX + 88, GRID_ORIGINY + grid_height + 40, "Order the cells chronologically to win!")
         qp.setFont(QFont('Arial', 18))
 
         # Loop through 2D board array and draw the board with numerically labeled cells
@@ -221,10 +228,6 @@ class SlidingPuzzle(QWidget):
                 # Draw the cell border
                 qp.drawRect(GRID_ORIGINX + c * CELL_SIZE, GRID_ORIGINY + r * CELL_SIZE, CELL_SIZE, CELL_SIZE)
 
-        # Draw the instructional text below the board
-        qp.setFont(QFont('Arial', 15))
-        qp.drawText(GRID_ORIGINX + 88, GRID_ORIGINY + grid_height + 40, "Order the cells chronologically to win!")
-
         # Check if the user won
         if self.win:
             self.timer.stop()
@@ -233,9 +236,13 @@ class SlidingPuzzle(QWidget):
 
     # Handle mouse click event
     def mousePressEvent(self, event):
-        # If user won, reset the game on click
+        # Check for active solution animation
+        if self.solving:
+            return  # Ignore clicks
+
+        # Check for user win
         if self.win:
-            self.play_again()
+            self.play_again()  # Reset the game
             return
 
         # Calculate row and column of mouse click
@@ -308,9 +315,13 @@ class SlidingPuzzle(QWidget):
     # Reset the game, as in, set a new random state on board and set moves to 0
     def play_again(self):
         # Reset the game state
-        self.initialize_board()
+        self.__board = [[-1 for _ in range(CELL_COUNT)] for _ in range(CELL_COUNT)]
+        self.__order = None
         self.__moves = 0
         self.win = False
+        self.solution_path = []
+        self.solution_index = 0
+        self.initialize_board()
         self.reset_button.show()  # Reveal the reset button
         self.solve_button.show()  # Reveal the solve button
         self.elapsed_time = 0  # Reset the elapsed time
@@ -323,8 +334,19 @@ class SlidingPuzzle(QWidget):
         self.update()  # Trigger a repaint to show the updated time
 
     # Use A* Search to find a path to the goal state and display it by moving the tiles every .5-seconds
-    def display_solution_path(self):
+    def display_solution(self):
+        self.solving = True  # Set the solving in progress flag
+        self.solve_button.setEnabled(False)  # Disable Solve button
+        self.reset_button.setEnabled(False)  # Disable Reset button
+        self.repaint()  # Immediately update the display to disable clicks and show a solution in progress message
+
         self.solution_path = a_star_search(self.__board)  # Store the solution path
+
+        # Safely disconnect any existing connections
+        try:
+            self.solution_timer.timeout.disconnect(self.solution_step)
+        except TypeError:
+            pass  # No previous connection, ignore the error and continue
         self.solution_timer.timeout.connect(self.solution_step)  # Connect to the step (utility) function
         self.solution_timer.start(500)  # 0.5-second delay for each move
 
@@ -342,10 +364,13 @@ class SlidingPuzzle(QWidget):
                 self.__board[swap_pos[0]][swap_pos[1]], self.__board[empty_pos[0]][empty_pos[1]]
 
             self.__moves += 1  # Increment the move counter
-            self.update()  # Update the display
             self.solution_index += 1  # Move to the next step in the solution path
+            self.update()  # Update the display
         else:
+            self.solving = False
             self.solution_timer.stop()  # Stop the timer when the solution is complete
+            self.solve_button.setEnabled(True)  # Enable Solve button
+            self.reset_button.setEnabled(True)  # Enable Reset button
             self.check_win()  # Check for a win condition (goal state met)
 
 
