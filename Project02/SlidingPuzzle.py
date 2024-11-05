@@ -4,10 +4,9 @@
 #  This program uses PyQt5 packages to construct a game called 15-puzzle with an automatic solver using A* search
 import sys
 import random
-from PyQt5.QtGui import QPainter, QColor, QFont, QPen
+from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QGuiApplication
 from PyQt5.QtWidgets import QWidget, QApplication, QPushButton
 from PyQt5.QtCore import Qt, QTimer
-from queue import PriorityQueue
 import heapq
 
 # Set game specifications: window size, cell/grid size, cell count, and grid starting location
@@ -96,12 +95,12 @@ class SlidingPuzzle(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('SlidingPuzzle')
-        self.setGeometry(300, 300, W_WIDTH, W_HEIGHT)
         self.__moves = 0
         self.win = False
         self.__board = [[-1 for _ in range(CELL_COUNT)] for _ in range(CELL_COUNT)]
         self.__order = None
+        self.initUI()
+        self.center_on_screen()
         self.initialize_board()
 
         # Setup timer and variables for solving the puzzle
@@ -131,6 +130,31 @@ class SlidingPuzzle(QWidget):
         self.solve_button.clicked.connect(self.display_solution)
 
         self.show()
+
+    def initUI(self):
+        # Set window title and size
+        self.setWindowTitle('SlidingPuzzle')
+        self.setGeometry(300, 300, W_WIDTH, W_HEIGHT)
+
+        # Center the window on the screen
+        screen = QGuiApplication.primaryScreen()
+        screen_geometry = screen.availableGeometry()
+        x = (screen_geometry.width() - self.width()) // 2
+        y = (screen_geometry.height() - self.height()) // 2
+        self.move(x, y)
+
+    def center_on_screen(self):
+        screen = QApplication.primaryScreen().availableGeometry()
+        center = screen.center()
+        frame_geometry = self.frameGeometry()
+        frame_geometry.moveCenter(center)
+        self.move(frame_geometry.topLeft())
+
+    def resizeEvent(self, event):
+        # Check if the window is in full screen
+        if self.isFullScreen():
+            self.center_on_screen()  # Center the window in full screen mode
+        super().resizeEvent(event)
 
     # Initializes the board with random cell numbers if solvable
     def initialize_board(self):
@@ -348,7 +372,7 @@ class SlidingPuzzle(QWidget):
         except TypeError:
             pass  # No previous connection, ignore the error and continue
         self.solution_timer.timeout.connect(self.solution_step)  # Connect to the step (utility) function
-        self.solution_timer.start(500)  # 0.5-second delay for each move
+        self.solution_timer.start(750)  # 0.75-second delay for each move
 
     # Utility function to animate the solution by converting the 1D index to a 2D position and swapping the cells
     def solution_step(self):
