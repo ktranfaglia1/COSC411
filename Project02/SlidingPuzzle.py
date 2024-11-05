@@ -1,6 +1,6 @@
 #  Kyle Tranfaglia
 #  COSC411 - Project02
-#  Last updated 09/23/24
+#  Last updated 11/04/24
 #  This program uses PyQt5 packages to construct a game called 15-puzzle with an automatic solver using A* search
 import sys
 import random
